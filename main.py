@@ -1,15 +1,12 @@
-import dateparser
-import datetime
-import pandas as pd
-from difflib import SequenceMatcher
-import telebot
+from tg_bot import *
+
 
 class Main:
     file = 'MosTrans.xlsx'
     df = pd.read_excel(file, header=0)
     names_stations = []
     ban_words = ["Сколько", "сколько", "Много", "много", "люди", "людей", "ли", "было", "будет", "на", "станции",
-                 "станция", "встреча", "метро", "народу", "народ", "количество", "какое", "Какое", "там", "Я","я"]
+                 "станция", "встреча", "метро", "народу", "народ", "количество", "какое", "Какое", "там", "Я", "я"]
     for i in range(len(df)):
         names_stations.append(df.iloc[i, 0])
 
@@ -70,17 +67,19 @@ class Main:
     def clean_string(self, sin):
         words = sin.split()
         answers = []
-        flag = 1
         for elem in words:
             flag = 1
             for ban_word in self.ban_words:
-                if elem == ban_word: flag = 0
-            if (flag == 1): answers.append(elem)
+                if elem == ban_word:
+                    flag = 0
+            if flag == 1:
+                answers.append(elem)
         # ''.join(map(str, words))
         return ' '.join(map(str, answers))
 
     def predict(self, name_station, date):
-        if (date[3] == '2'): return 0
+        if date[3] == '2':
+            return 0
         delta = datetime.timedelta(days=7)
         answers = []
         answers_st = []
@@ -170,70 +169,58 @@ def find_date_in_parts(input_str):
 def query(s, chat_id):
     x = Main()
     sentence = 'a ' + x.clean_string(s) + ' a'
-    stantion = ''
-    stantion = x.similar(sentence)
-    a = []
+    stantion = str(x.similar(sentence))
     a = find_date_in_parts(sentence)
-    if (a is None or stantion == ''):
-        bot.send_message(chat_id, "К сожалению мы не смогли обработать ваш запрос.\nПожалуста попробуйте переформулировать ваш запрос и написать его снова.")
+    if a is None or stantion == '':
+        bot.send_message(chat_id, "К сожалению мы не смогли обработать ваш запрос.\n"
+                                  "Пожалуста попробуйте переформулировать ваш запрос и написать его снова.")
         return
-    elif (len(a) == 1 or a[0] == a[1]):
+    elif len(a) == 1 or a[0] == a[1]:
         data = a[0]
         val = 0
         gener = 0
         if data is not None and stantion is not None:
             val = x.get_val(stantion, data)
-            if (len(val) == 0):
+            if len(val) == 0:
                 gener = 1
                 val = x.predict(stantion, data)
         valstr = ''
-        if(len(val)==1 ) :
+        if len(val) == 1:
             valstr = str(val[0])
         else:
-            for i in range(0, len(val), 2): valstr= valstr +'*'+ str(val[i]) + '-' +str(val[i+1]) + "\n"
-        if(gener == 0):
+            for i in range(0, len(val), 2):
+                valstr = valstr + '*' + str(val[i]) + '-' + str(val[i+1]) + "\n"
+        if gener == 0:
             text = (data + " числа, на станции " + stantion + " было следущее количество пасажиров:\n " + str(valstr))
         else:
-            text = ("Могу предположить что " + data + " числа на станции " + stantion + " будет следущее количество пасажиров: \n" + str(valstr))
+            text = ("Могу предположить что " + data + " числа на станции " + stantion +
+                    " будет следущее количество пасажиров: \n" + str(valstr))
         bot.send_message(chat_id, text)
-    elif (len(a)>1):
+    elif len(a) > 1:
         data1 = a[0]
         data2 = a[1]
         gener = 0
         u = datetime.datetime(int(data2[:4]), int(data2[5:7]), int(data2[8:10]))
-        y =datetime.datetime(int(data1[:4]), int(data1[5:7]), int(data1[8:10]))
-        print(data1,data2,'k')
-        if(u >y):
-            val = x.get_vales(stantion, data1,data2)
+        y = datetime.datetime(int(data1[:4]), int(data1[5:7]), int(data1[8:10]))
+        print(data1, data2, 'k')
+        if u > y:
+            val = x.get_vales(stantion, data1, data2)
         else:
             val = x.get_vales(stantion, data2, data1)
-        if(val==0):
+        if val == 0:
             gener = 1
-            if (u > y):
+            if u > y:
                 val = x.predicts(stantion, data1, data2)
             else:
                 val = x.predicts(stantion, data2, data1)
-        print (val)
-        valstr =  ''
-        for i in range(0, len(val), 3): valstr = valstr + '*' + str(val[i]) + '| среднее - ' + str(val[i + 1])+ "\n*" +str(val[i])+"|сумма за всё время - " + str(val[i+2])+ "\n"
-        if(gener == 0):
-            bot.send_message(chat_id, "C " + data1 + " по " + data2 + " на стнации " + stantion + " побывало следующие количество пасажиров:\n" + valstr)
+        print(val)
+        valstr = ''
+        for i in range(0, len(val), 3):
+            valstr = (valstr + '*' + str(val[i]) + '| среднее - ' + str(val[i + 1]) + "\n*" +
+                      str(val[i]) + "|сумма за всё время - " + str(val[i+2]) + "\n")
+        if gener == 0:
+            bot.send_message(chat_id, "C " + data1 + " по " + data2 + " на стнации " + stantion +
+                             " побывало следующие количество пасажиров:\n" + valstr)
         else:
-            bot.send_message(chat_id, "Предположительно, c " + data1 + " по " + data2 + " на стнации " + stantion + " побывало следующие количество пасажиров:\n" + valstr)
-
-
-
-TOKEN = "7150156832:AAGV2P4_ZFB4HSfucnyvTzKNfxeg6_Y89J8"
-bot = telebot.TeleBot(TOKEN)
-def send_message_to_chat(chat_id, message):
-    bot.send_message(chat_id, message)
-@bot.message_handler(commands=['start'])
-def start(message):
- bot.send_message(message.chat.id, 'Привет! Я ваш бот, я могу подсказать пассажиропоток в метро за какое-то время.')
-@bot.message_handler(func=lambda message: True)
-def echo(message):
-    s = str(message.text)
-    chat_id = message.chat.id
-    query(s, chat_id)
-bot.polling()
-
+            bot.send_message(chat_id, "Предположительно, c " + data1 + " по " + data2 + " на стнации " + stantion +
+                             " побывало следующие количество пасажиров:\n" + valstr)
